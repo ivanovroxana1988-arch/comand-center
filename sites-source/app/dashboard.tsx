@@ -9,7 +9,17 @@ const cls=(s:string)=>s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/
 const shortDate=(v:string|null)=>v?new Intl.DateTimeFormat("ro-RO",{day:"2-digit",month:"short"}).format(new Date(v+"T12:00:00")):"Fără termen";
 export default function Dashboard(){
  const[tasks,setTasks]=useState<Task[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(""),[modal,setModal]=useState(false),[ownerFilter,setOwnerFilter]=useState("Toți"),[areaFilter,setAreaFilter]=useState("Toate"),[view,setView]=useState("Active"),[form,setForm]=useState(blank);
- useEffect(()=>{fetch("/api/tasks").then(r=>r.json().then(d=>({ok:r.ok,d}))).then(({ok,d})=>ok?setTasks(d.tasks):setError(d.error)).catch(()=>setError("Nu am putut încărca taskurile.")).finally(()=>setLoading(false))},[]);
+ useEffect(()=>{
+  let stopped=false,busy=false;
+  async function refresh(){
+   if(busy||document.visibilityState==='hidden')return;busy=true;
+   try{const r=await fetch('/api/tasks',{cache:'no-store'});if(!r.ok)throw new Error('load');const d=await r.json();if(!stopped)setTasks(d.tasks)}
+   catch{if(!stopped)setError('Nu am putut actualiza lista. Reîncercăm automat.')}
+   finally{busy=false;if(!stopped)setLoading(false)}
+  }
+  void refresh();const timer=setInterval(refresh,15000);window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);
+  return()=>{stopped=true;clearInterval(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh)};
+ },[]);
  useEffect(()=>{
   type Tool={name:string;description:string;inputSchema:Record<string,unknown>;annotations?:Record<string,boolean>;execute:(input:Record<string,unknown>)=>Promise<unknown>};
   const context=(document as Document&{modelContext?:{registerTool:(tool:Tool)=>Promise<unknown>|unknown}}).modelContext;

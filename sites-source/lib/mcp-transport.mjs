@@ -2,7 +2,7 @@ import { areas, owners, statuses, priorities, TaskError } from './command-center
 const str={type:'string'}, id={type:'integer',minimum:1};
 const fields={area:{...str,enum:areas},project:str,title:str,owner:{...str,enum:owners},status:{...str,enum:statuses},priority:{...str,enum:priorities},dueDate:{type:['string','null']},nextStep:str,link:str,notes:str};
 function tool(name,description,properties,required=[],readOnly=true) {
-  return {name,description,inputSchema:{type:'object',properties,required,additionalProperties:false},annotations:{readOnlyHint:readOnly,destructiveHint:false,openWorldHint:false}};
+  return {name,description,inputSchema:{type:'object',properties,required,additionalProperties:false},securitySchemes:[{type:'oauth2',scopes:readOnly?['tasks:read']:['tasks:read','tasks:write']}],annotations:{readOnlyHint:readOnly,destructiveHint:false,openWorldHint:false}};
 }
 export const tools=[
   tool('list_tasks','Citește taskurile Command Center cu filtre și paginare.',{area:fields.area,project:str,owner:fields.owner,status:fields.status,parent_task_id:id,limit:{type:'integer',minimum:1,maximum:100},offset:{type:'integer',minimum:0}}),

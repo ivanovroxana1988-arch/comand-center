@@ -2,6 +2,7 @@
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 import { authGate } from '../lib/google-auth.mjs';
+import { oauthRoute } from '../lib/mcp-oauth.mjs';
 
 interface Env {
   ASSETS: Fetcher;
@@ -42,6 +43,8 @@ const worker = {
       return response;
     }
     try {
+      const oauth = await oauthRoute(request, env);
+      if (oauth) return oauth;
       const access=await authGate(request,env);
       if(access instanceof Response)return access;
     } catch {

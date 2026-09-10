@@ -20,8 +20,18 @@ export type Task = typeof tasks.$inferSelect;
 export const authLoginStates = sqliteTable('auth_login_states', {
   stateHash: text('state_hash').primaryKey(), browserHash: text('browser_hash').notNull(),
   verifier: text('verifier').notNull(), nonce: text('nonce').notNull(), expiresAt: integer('expires_at').notNull(),
+  returnTo: text('return_to').notNull().default('/'),
 });
 export const authSessions = sqliteTable('auth_sessions', {
   tokenHash: text('token_hash').primaryKey(), userId: text('user_id').notNull(),
   email: text('email').notNull(), expiresAt: integer('expires_at').notNull(),
+});
+export const mcpOauthGrants = sqliteTable('mcp_oauth_grants', {
+  id: text('id').primaryKey(), userId: text('user_id').notNull(), clientId: text('client_id').notNull(),
+  resource: text('resource').notNull(), scope: text('scope').notNull(),
+  expiresAt: integer('expires_at').notNull(), revoked: integer('revoked').notNull().default(0),
+});
+export const mcpOauthSecrets = sqliteTable('mcp_oauth_secrets', {
+  hash: text('hash').primaryKey(), kind: text('kind').notNull(), payload: text('payload').notNull(),
+  grantId: text('grant_id'), expiresAt: integer('expires_at').notNull(), used: integer('used').notNull().default(0),
 });

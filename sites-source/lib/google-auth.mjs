@@ -15,6 +15,11 @@ function response(body,status=200,extra={}) {
   return new Response(body,{status,headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer','x-content-type-options':'nosniff','content-security-policy':"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",...extra}});
 }
 const redirect = (url,extra={}) => response(null,303,{location:url,...extra});
+function safeReturn(value) {
+  if(typeof value!=='string'||value.length>4096||!value.startsWith('/'))return '/';
+  const u=new URL(value,APP_ORIGIN);
+  return u.origin===APP_ORIGIN&&['/oauth/authorize','/oauth/connections','/confirm-change'].includes(u.pathname)?u.pathname+u.search:'/';
+}
 const page = (message,action='<a href="/auth/google/start">Continuă cu Google</a>') => `<!doctype html><html lang="ro"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Command Center</title><style>body{font:18px system-ui;background:#f5f7fb;color:#17223b;margin:0;padding:8vh 24px}main{max-width:540px;margin:auto;padding:32px;background:white;border-radius:16px}h1{font-size:28px}a,button{display:inline-block;background:#244fce;color:white;padding:14px 20px;border:0;border-radius:8px;font:inherit;text-decoration:none}p{line-height:1.6}</style><main><h1>Bogdan &amp; Roxana<br>Command Center</h1><p>${message}</p>${action}</main></html>`;
 
 // Validate the Google-signed ID token, never a decoded-only JWT or caller header.
@@ -53,7 +58,7 @@ export async function authGate(request,env,fetcher=fetch) {
     if(request.method!=='GET')return response('Method not allowed',405);
     const state=random(), browser=random(), verifier=random(), nonce=random();
     await env.DB.prepare('DELETE FROM auth_login_states WHERE expires_at <= ?').bind(now).run();
-    await env.DB.prepare('INSERT INTO auth_login_states (state_hash, browser_hash, verifier, nonce, expires_at) VALUES (?, ?, ?, ?, ?)').bind(await digest(state),await digest(browser),verifier,nonce,now+600000).run();
+    await env.DB.prepare('INSERT INTO auth_login_states (state_hash, browser_hash, verifier, nonce, expires_at, return_to) VALUES (?, ?, ?, ?, ?, ?)').bind(await digest(state),await digest(browser),verifier,nonce,now+600000,safeReturn(url.searchParams.get('return_to'))).run();
     const google=new URL('https://accounts.google.com/o/oauth2/v2/auth');
     google.search=new URLSearchParams({client_id:env.GOOGLE_CLIENT_ID,redirect_uri:CALLBACK,response_type:'code',scope:'openid email',state,nonce,code_challenge:await digest(verifier),code_challenge_method:'S256',prompt:'select_account'}).toString();
     return redirect(google.href,{'set-cookie':setCookie(STATE,browser,600)});
@@ -63,7 +68,7 @@ export async function authGate(request,env,fetcher=fetch) {
     const state=url.searchParams.get('state')||'', browser=cookie(request,STATE),code=url.searchParams.get('code');
     const clear={'set-cookie':setCookie(STATE,'',0)};
     if(!/^[A-Za-z0-9_-]{43}$/.test(state)||!/^[A-Za-z0-9_-]{43}$/.test(browser))return response(page('Conectarea a expirat. Încearcă din nou.'),400,clear);
-    const login=await env.DB.prepare('DELETE FROM auth_login_states WHERE state_hash = ? AND browser_hash = ? AND expires_at > ? RETURNING verifier, nonce').bind(await digest(state),await digest(browser),now).first();
+    const login=await env.DB.prepare('DELETE FROM auth_login_states WHERE state_hash = ? AND browser_hash = ? AND expires_at > ? RETURNING verifier, nonce, return_to').bind(await digest(state),await digest(browser),now).first();
     if(!login||!code||code.length>4096||url.searchParams.has('error'))return response(page('Conectarea a expirat sau a fost anulată. Încearcă din nou.'),400,clear);
     try {
       const tokens=await fetcher('https://oauth2.googleapis.com/token',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:env.GOOGLE_CLIENT_ID,client_secret:env.GOOGLE_CLIENT_SECRET,code,code_verifier:login.verifier,redirect_uri:CALLBACK,grant_type:'authorization_code'}),signal:AbortSignal.timeout(10000)});
@@ -74,7 +79,7 @@ export async function authGate(request,env,fetcher=fetch) {
       if(old)await env.DB.prepare('DELETE FROM auth_sessions WHERE token_hash = ?').bind(await digest(old)).run();
       await env.DB.prepare('DELETE FROM auth_sessions WHERE expires_at <= ?').bind(now).run();
       await env.DB.prepare('INSERT INTO auth_sessions (token_hash, user_id, email, expires_at) VALUES (?, ?, ?, ?)').bind(await digest(token),user.id,user.email,now+28800000).run();
-      const result=redirect('/');result.headers.append('set-cookie',setCookie(STATE,'',0));result.headers.append('set-cookie',setCookie(SESSION,token,28800));return result;
+      const result=redirect(safeReturn(login.return_to));result.headers.append('set-cookie',setCookie(STATE,'',0));result.headers.append('set-cookie',setCookie(SESSION,token,28800));return result;
     } catch { return response(page('Conectarea nu a reușit. Accesul este disponibil doar pentru conturile Roxanei și ale lui Bogdan.'),403,clear); }
   }
   const user=await sessionUser(request,env,now);
