@@ -8,7 +8,7 @@
   ],
   "no_bundle": true,
   "build": {
-    "command": "npm ci && npx vite build",
+    "command": "npm ci && npx vite build && CI=true npx wrangler d1 migrations apply comand-center-db --remote --config ../wrangler.jsonc",
     "cwd": "sites-source",
     "watch_dir": "sites-source"
   },
