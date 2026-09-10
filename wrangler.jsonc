@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "comand-center",
+  "main": "sites-source/dist/server/index.js",
+  "compatibility_date": "2026-09-10",
+  "compatibility_flags": ["nodejs_compat"],
+  "no_bundle": true,
+  "build": {
+    "command": "npm ci && npm run build",
+    "cwd": "sites-source",
+    "watch_dir": "sites-source"
+  },
+  "assets": {
+    "directory": "sites-source/dist/client",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "vars": {
+    "COMMAND_CENTER_SETUP_MODE": "true"
+  },
+  "observability": {
+    "enabled": true
+  }
+}
