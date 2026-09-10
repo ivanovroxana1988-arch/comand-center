@@ -6,7 +6,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "no_bundle": true,
   "build": {
-    "command": "npm ci && npm run build",
+    "command": "npm ci && npx vite build",
     "cwd": "sites-source",
     "watch_dir": "sites-source"
   },
