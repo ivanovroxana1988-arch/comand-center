@@ -3,7 +3,9 @@
   "name": "comand-center",
   "main": "sites-source/dist/server/index.js",
   "compatibility_date": "2026-09-10",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "no_bundle": true,
   "build": {
     "command": "npm ci && npx vite build",
@@ -20,5 +22,15 @@
   },
   "observability": {
     "enabled": true
-  }
+  },
+  "find_additional_modules": true,
+  "rules": [
+    {
+      "type": "ESModule",
+      "globs": [
+        "**/*.js",
+        "**/*.mjs"
+      ]
+    }
+  ]
 }
