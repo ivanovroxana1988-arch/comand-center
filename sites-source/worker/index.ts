@@ -1,10 +1,13 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
+import { authGate } from '../lib/google-auth.mjs';
 
 interface Env {
   ASSETS: Fetcher;
-  DB?: D1Database;
+  DB: D1Database;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
   COMMAND_CENTER_SETUP_MODE?: string;
   IMAGES: {
     input(stream: ReadableStream): {
@@ -28,19 +31,15 @@ interface ExecutionContext {
 
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    if (env.COMMAND_CENTER_SETUP_MODE === "true" || !env.DB) {
-      return new Response(
-        "Command Center este conectat la Cloudflare. Configurarea bazei de date si a autentificarii este in curs.",
-        {
-          status: 503,
-          headers: {
-            "content-type": "text/plain; charset=utf-8",
-            "cache-control": "no-store",
-          },
-        },
-      );
+    try {
+      const access=await authGate(request,env);
+      if(access instanceof Response)return access;
+    } catch {
+      return new Response('Serviciul este temporar indisponibil. Reîncearcă în câteva momente.',{status:503,headers:{'cache-control':'no-store'}});
     }
-
+    const cleanHeaders=new Headers(request.headers);
+    for(const name of [...cleanHeaders.keys()])if(name.startsWith('oai-authenticated-'))cleanHeaders.delete(name);
+    request=new Request(request,{headers:cleanHeaders});
     const url = new URL(request.url);
 
     if (url.pathname === "/_vinext/image") {
@@ -54,7 +53,13 @@ const worker = {
       }, allowedWidths);
     }
 
-    return handler.fetch(request, env, ctx);
+    const result=await handler.fetch(request, env, ctx);
+    const secured=new Response(result.body,result);
+    secured.headers.set('cache-control','private, no-store');
+    secured.headers.set('referrer-policy','no-referrer');
+    secured.headers.set('x-content-type-options','nosniff');
+    secured.headers.set('x-frame-options','DENY');
+    return secured;
   },
 };
 

@@ -1,11 +1,11 @@
 import { headers } from 'next/headers';
 import { env } from 'cloudflare:workers';
 import { taskService } from './command-center.mjs';
-export const commandCenterOrigin='https://bogdan-roxana-command-center.roxana-roxy-5897.chatgpt.site';
+import { APP_ORIGIN, sessionUser } from './google-auth.mjs';
+export const commandCenterOrigin=APP_ORIGIN;
 export async function siteTaskService() {
-  // These headers are supplied by Sites dispatch after its private access policy.
-  // Never deploy this adapter on an origin where callers can forge those headers.
-  const h=await headers(), id=h.get('oai-authenticated-user-id');
-  if(!id) return null;
-  return taskService(env.DB,{id,scopes:['tasks:read','tasks:write']});
+  const h=await headers();
+  const user=await sessionUser(new Request(APP_ORIGIN,{headers:{cookie:h.get('cookie')||''}}),env);
+  if(!user) return null;
+  return taskService(env.DB,{id:user.id,scopes:['tasks:read','tasks:write']});
 }

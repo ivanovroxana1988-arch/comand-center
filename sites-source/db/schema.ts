@@ -17,3 +17,11 @@ export const taskChanges = sqliteTable("task_changes", {
   attempt: text("attempt"), resultJson: text("result_json"), createdAt: text("created_at").notNull(),
 });
 export type Task = typeof tasks.$inferSelect;
+export const authLoginStates = sqliteTable('auth_login_states', {
+  stateHash: text('state_hash').primaryKey(), browserHash: text('browser_hash').notNull(),
+  verifier: text('verifier').notNull(), nonce: text('nonce').notNull(), expiresAt: integer('expires_at').notNull(),
+});
+export const authSessions = sqliteTable('auth_sessions', {
+  tokenHash: text('token_hash').primaryKey(), userId: text('user_id').notNull(),
+  email: text('email').notNull(), expiresAt: integer('expires_at').notNull(),
+});

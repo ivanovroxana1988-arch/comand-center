@@ -17,7 +17,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ro">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">{children}<footer style={{padding:16,textAlign:'right'}}><a href="/auth/logout">Deconectare</a></footer></body>
     </html>
   );
 }
