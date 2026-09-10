@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./editorial.css";
 
 export const metadata: Metadata = {
   title: "Bogdan & Roxana — Command Center",

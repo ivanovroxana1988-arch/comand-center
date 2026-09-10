@@ -31,6 +31,16 @@ interface ExecutionContext {
 
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    // Only compiled presentation assets are public; every application/data route
+    // continues through the session gate below. Never return login HTML as CSS/JS.
+    const assetPath = new URL(request.url).pathname;
+    if (/^\/assets\/[A-Za-z0-9_-]+\.(css|js|woff2?)$/.test(assetPath) || assetPath === '/favicon.svg') {
+      if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method not allowed', {status:405});
+      const asset = await env.ASSETS.fetch(request);
+      const response = new Response(asset.body, asset);
+      response.headers.set('x-content-type-options', 'nosniff');
+      return response;
+    }
     try {
       const access=await authGate(request,env);
       if(access instanceof Response)return access;
@@ -41,18 +51,6 @@ const worker = {
     for(const name of [...cleanHeaders.keys()])if(name.startsWith('oai-authenticated-'))cleanHeaders.delete(name);
     request=new Request(request,{headers:cleanHeaders});
     const url = new URL(request.url);
-
-    // Serve generated browser files through the asset binding after authentication.
-    if (url.pathname.startsWith("/assets/") || url.pathname === "/favicon.svg") {
-      if (request.method !== "GET" && request.method !== "HEAD") {
-        return new Response("Method not allowed", { status: 405 });
-      }
-      const asset = await env.ASSETS.fetch(request);
-      const securedAsset = new Response(asset.body, asset);
-      securedAsset.headers.set("cache-control", "private, no-store");
-      securedAsset.headers.set("x-content-type-options", "nosniff");
-      return securedAsset;
-    }
 
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
