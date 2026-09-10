@@ -18,7 +18,8 @@
     "run_worker_first": true
   },
   "vars": {
-    "COMMAND_CENTER_SETUP_MODE": "true"
+    "COMMAND_CENTER_SETUP_MODE": "true",
+    "GOOGLE_CLIENT_ID": "89716203368-fhpjeobf3sa1t3vbr647ed5gg22g5v0f.apps.googleusercontent.com"
   },
   "observability": {
     "enabled": true
