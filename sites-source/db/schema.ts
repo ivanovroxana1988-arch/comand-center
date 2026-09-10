@@ -1,0 +1,19 @@
+import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+
+export const tasks = sqliteTable("tasks", {
+  id: integer("id").primaryKey({ autoIncrement: true }), area: text("area").notNull(),
+  project: text("project").notNull(), title: text("title").notNull(), owner: text("owner").notNull(),
+  dueDate: text("due_date"), status: text("status").notNull().default("De făcut"),
+  priority: text("priority").notNull().default("Medie"), nextStep: text("next_step").notNull().default(""),
+  link: text("link").notNull().default(""), notes: text("notes").notNull().default(""),
+  createdAt: text("created_at").notNull(), updatedAt: text("updated_at").notNull(),
+  parentTaskId: integer("parent_task_id"),
+});
+export const taskChanges = sqliteTable("task_changes", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull(),
+  operation: text("operation").notNull(), taskId: integer("task_id"),
+  payload: text("payload").notNull(), beforeJson: text("before_json").notNull(),
+  expiresAt: text("expires_at").notNull(), status: text("status").notNull(),
+  attempt: text("attempt"), resultJson: text("result_json"), createdAt: text("created_at").notNull(),
+});
+export type Task = typeof tasks.$inferSelect;
