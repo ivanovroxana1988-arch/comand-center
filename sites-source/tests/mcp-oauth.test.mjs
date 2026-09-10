@@ -33,7 +33,14 @@ test('discovery and unauthenticated challenge; invalid redirects, scopes and ori
  const no=await s.call('/mcp');assert.equal(no.status,401);assert.match(no.headers.get('www-authenticate'),/resource_metadata/);
  assert.equal((await s.call('/mcp',{headers:{cookie:s.cookie}})).status,401);
  for(const override of [{redirect_uri:'https://evil.test/cb'},{client_id:'https://evil.test/client.json'},{scope:'admin'},{resource:APP_ORIGIN},{code_challenge_method:'plain'}])assert.equal((await s.call('/oauth/authorize?'+new URLSearchParams({...s.params,...override}))).status,400);
- assert.equal((await s.call('/oauth/authorize?'+new URLSearchParams(s.params),{headers:{origin:'https://evil.test'}})).status,403);
+ for(const origin of ['https://chatgpt.com','null','https://evil.test']) {
+   assert.equal((await s.call('/oauth/authorize?'+new URLSearchParams(s.params),{headers:{origin}})).status,303);
+   assert.equal((await s.call('/oauth/authorize?'+new URLSearchParams({...s.params,redirect_uri:'https://evil.test/callback'}),{headers:{origin}})).status,400);
+   for(const path of ['/oauth/authorize','/oauth/connections','/oauth/token','/mcp']) {
+     assert.equal((await s.call(path,{method:'POST',headers:{origin}})).status,403);
+   }
+ }
+ assert.equal((await s.call('/mcp',{headers:{origin:'https://chatgpt.com'}})).status,403);
  const login=await s.call('/oauth/authorize?'+new URLSearchParams(s.params));assert.equal(login.status,303);assert.match(login.headers.get('location'),/^\/auth\/google\/start\?return_to=/);
 });
 test('consent, issuer, single-use code, PKCE, scoped MCP proposals and browser approval identity',async()=>{

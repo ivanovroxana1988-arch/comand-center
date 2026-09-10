@@ -74,7 +74,11 @@ export async function oauthRoute(request,env,fetcher=fetch,now=Date.now()) {
   const url=new URL(request.url),path=url.pathname;
   if(!['/.well-known/oauth-protected-resource','/.well-known/oauth-protected-resource/mcp','/.well-known/oauth-authorization-server','/oauth/authorize','/oauth/token','/oauth/connections','/mcp'].includes(path))return null;
   if(url.origin!==APP_ORIGIN)return fail('invalid_request',403,'unexpected_server_origin');
-  if(request.headers.has('origin')&&request.headers.get('origin')!==APP_ORIGIN)return fail('invalid_request',403,'unexpected_request_origin');
+  // OAuth authorization is entered from an external client/browser.
+  // GET renders consent or redirects to login; it never grants access.
+  // Browser consent/revocation POSTs and all MCP/token requests retain their origin checks.
+  const publicEntryGet=request.method==='GET'&&(path==='/oauth/authorize'||path.startsWith('/.well-known/'));
+  if(!publicEntryGet&&request.headers.has('origin')&&request.headers.get('origin')!==APP_ORIGIN)return fail('invalid_request',403,'unexpected_request_origin');
   if(path.startsWith('/.well-known/')) {
     if(request.method!=='GET')return new Response(null,{status:405});
     return path.endsWith('oauth-authorization-server')?json({issuer:APP_ORIGIN,authorization_response_iss_parameter_supported:true,authorization_endpoint:APP_ORIGIN+'/oauth/authorize',token_endpoint:APP_ORIGIN+'/oauth/token',client_id_metadata_document_supported:true,token_endpoint_auth_methods_supported:['none'],code_challenge_methods_supported:['S256'],response_types_supported:['code'],grant_types_supported:['authorization_code','refresh_token'],scopes_supported:SCOPES}):json({resource:RESOURCE,authorization_servers:[APP_ORIGIN],scopes_supported:SCOPES,bearer_methods_supported:['header']});
