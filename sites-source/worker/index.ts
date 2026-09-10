@@ -42,6 +42,18 @@ const worker = {
     request=new Request(request,{headers:cleanHeaders});
     const url = new URL(request.url);
 
+    // Serve generated browser files through the asset binding after authentication.
+    if (url.pathname.startsWith("/assets/") || url.pathname === "/favicon.svg") {
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        return new Response("Method not allowed", { status: 405 });
+      }
+      const asset = await env.ASSETS.fetch(request);
+      const securedAsset = new Response(asset.body, asset);
+      securedAsset.headers.set("cache-control", "private, no-store");
+      securedAsset.headers.set("x-content-type-options", "nosniff");
+      return securedAsset;
+    }
+
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
       return handleImageOptimization(request, {
