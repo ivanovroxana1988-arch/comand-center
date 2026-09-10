@@ -9,7 +9,7 @@ const SCOPES = ['tasks:read', 'tasks:write'];
 const random = () => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32)))).replaceAll('+','-').replaceAll('/','_').replaceAll('=','');
 const tokenPattern = /^[A-Za-z0-9_-]{43}$/;
 const json = (data,status=200,headers={}) => Response.json(data,{status,headers:{'cache-control':'no-store',...headers}});
-const fail = (error='invalid_request',status=400) => json({error},status);
+const fail = (error='invalid_request',status=400,description) => json({error,...(description?{error_description:description}:{})},status);
 const escape = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const html = body => new Response(`<!doctype html><html lang="ro"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Conectare ChatGPT · Command Center</title><style>body{font:16px system-ui;color:#182126;background:#faf9f6;padding:24px}main{max-width:600px;margin:7vh auto}h1{font:42px Georgia}p,li{line-height:1.6}button,a{display:inline-block;padding:12px 18px;margin:8px 8px 8px 0}button{background:#182126;color:white;border:0;font:inherit;cursor:pointer}a{color:#315f78}form{padding:20px 0;border-top:1px solid #b7c0c0}</style><main>${body}</main></html>`,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer','x-content-type-options':'nosniff','content-security-policy':"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"}});
 const redirect = location => new Response(null,{status:303,headers:{location,'cache-control':'no-store','referrer-policy':'no-referrer'}});
@@ -38,8 +38,8 @@ export async function bearerPrincipal(request,env,now=Date.now()) {
 }
 async function clientMetadata(fetcher) {
   // Fixed official URL, no user-controlled network targets or redirects.
-  const r=await fetcher(CLIENT,{redirect:'error',signal:AbortSignal.timeout(10000)});
-  if(!r.ok)throw new Error('Client metadata unavailable');
+  const r=await fetcher(CLIENT,{headers:{accept:'application/json'},redirect:'error',signal:AbortSignal.timeout(10000)});
+  if(!r.ok)throw new Error('client_metadata_http_'+r.status);
   const raw=await r.text();if(raw.length>32768)throw new Error('Client metadata too large');
   const c=JSON.parse(raw);const methods=c.token_endpoint_auth_methods_supported||[c.token_endpoint_auth_method];
   if(c.client_id!==CLIENT||!c.redirect_uris?.includes(REDIRECT)||!methods.includes('none'))throw new Error('Unsupported client');
@@ -61,8 +61,8 @@ async function issueTokens(db,g,now) {
 export async function oauthRoute(request,env,fetcher=fetch,now=Date.now()) {
   const url=new URL(request.url),path=url.pathname;
   if(!['/.well-known/oauth-protected-resource','/.well-known/oauth-protected-resource/mcp','/.well-known/oauth-authorization-server','/oauth/authorize','/oauth/token','/oauth/connections','/mcp'].includes(path))return null;
-  if(url.origin!==APP_ORIGIN)return fail('invalid_request',403);
-  if(request.headers.has('origin')&&request.headers.get('origin')!==APP_ORIGIN)return fail('invalid_request',403);
+  if(url.origin!==APP_ORIGIN)return fail('invalid_request',403,'unexpected_server_origin');
+  if(request.headers.has('origin')&&request.headers.get('origin')!==APP_ORIGIN)return fail('invalid_request',403,'unexpected_request_origin');
   if(path.startsWith('/.well-known/')) {
     if(request.method!=='GET')return new Response(null,{status:405});
     return path.endsWith('oauth-authorization-server')?json({issuer:APP_ORIGIN,authorization_response_iss_parameter_supported:true,authorization_endpoint:APP_ORIGIN+'/oauth/authorize',token_endpoint:APP_ORIGIN+'/oauth/token',client_id_metadata_document_supported:true,token_endpoint_auth_methods_supported:['none'],code_challenge_methods_supported:['S256'],response_types_supported:['code'],grant_types_supported:['authorization_code','refresh_token'],scopes_supported:SCOPES}):json({resource:RESOURCE,authorization_servers:[APP_ORIGIN],scopes_supported:SCOPES,bearer_methods_supported:['header']});
@@ -101,7 +101,13 @@ export async function oauthRoute(request,env,fetcher=fetch,now=Date.now()) {
   const user=await sessionUser(request,env,now);
   if(path==='/oauth/authorize') {
     if(request.method==='GET') {
-      let params;try{params=authorizationParams(url);await clientMetadata(fetcher)}catch{return fail()}
+      let params;
+      try {params=authorizationParams(url)} catch {return fail('invalid_request',400,'authorization_parameters_rejected')}
+      try {await clientMetadata(fetcher)} catch(e) {
+        const reason=/^client_metadata_http_\d{3}$/.test(e?.message||'')?e.message:'client_metadata_validation_failed';
+        // Only a fixed diagnostic identifier is returned; never OAuth state, codes or tokens.
+        return fail('temporarily_unavailable',503,reason);
+      }
       if(!user)return redirect('/auth/google/start?return_to='+encodeURIComponent(url.pathname+url.search));
       const csrf=await saveSecret(env.DB,'consent',{...params,user_id:user.id},now+600000);
       return html(`<h1>Conectează ChatGPT</h1><p>Cont: <strong>${escape(user.email)}</strong></p><ul><li>Citirea taskurilor din cele cinci arii.</li>${params.scope.includes('tasks:write')?'<li>Propuneri de creare, modificare și finalizare, cu confirmare separată pentru fiecare schimbare.</li>':''}</ul><p>Poți revoca accesul oricând. Conexiunea este valabilă cel mult 30 de zile înainte de o nouă autorizare.</p><form method="post" action="/oauth/authorize"><input type="hidden" name="consent" value="${csrf}"><button name="decision" value="allow">Autorizează ChatGPT</button><button name="decision" value="deny">Anulează</button></form>`);
