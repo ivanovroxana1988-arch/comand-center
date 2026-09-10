@@ -37,13 +37,25 @@ export async function bearerPrincipal(request,env,now=Date.now()) {
   return {id:g.user_id,scopes};
 }
 async function clientMetadata(fetcher) {
-  // Fixed official URL, no user-controlled network targets or redirects.
-  const r=await fetcher(CLIENT,{headers:{accept:'application/json'},redirect:'error',signal:AbortSignal.timeout(10000)});
+  let r;
+  try {
+    r=await fetcher(CLIENT,{headers:{accept:'application/json'},redirect:'manual',signal:AbortSignal.timeout(10000)});
+  } catch(e) {
+    throw new Error(['TimeoutError','AbortError'].includes(e?.name)?'client_metadata_timeout':'client_metadata_network_error');
+  }
+  if(r.status>=300&&r.status<400)throw new Error('client_metadata_redirect');
   if(!r.ok)throw new Error('client_metadata_http_'+r.status);
-  const raw=await r.text();if(raw.length>32768)throw new Error('Client metadata too large');
-  const c=JSON.parse(raw);const methods=c.token_endpoint_auth_methods_supported||[c.token_endpoint_auth_method];
-  if(c.client_id!==CLIENT||!c.redirect_uris?.includes(REDIRECT)||!methods.includes('none'))throw new Error('Unsupported client');
+  let raw;
+  try {raw=await r.text()}catch{throw new Error('client_metadata_body_error')}
+  if(raw.length>32768)throw new Error('client_metadata_too_large');
+  let c;try{c=JSON.parse(raw)}catch{throw new Error('client_metadata_not_json')}
+  if(!c||typeof c!=='object'||Array.isArray(c))throw new Error('client_metadata_invalid_document');
+  if(c.client_id!==CLIENT)throw new Error('client_metadata_identity_mismatch');
+  if(!Array.isArray(c.redirect_uris)||!c.redirect_uris.includes(REDIRECT))throw new Error('client_metadata_callback_mismatch');
+  const methods=c.token_endpoint_auth_methods_supported||[c.token_endpoint_auth_method];
+  if(!Array.isArray(methods)||!methods.includes('none'))throw new Error('client_metadata_auth_method_mismatch');
 }
+
 function authorizationParams(url) {
   const p=url.searchParams;for(const key of p.keys())if(p.getAll(key).length!==1)throw new Error('Duplicate parameter');
   if(p.get('client_id')!==CLIENT||p.get('redirect_uri')!==REDIRECT||p.get('resource')!==RESOURCE||p.get('response_type')!=='code'||p.get('code_challenge_method')!=='S256'||!tokenPattern.test(p.get('code_challenge')||''))throw new Error('Invalid authorization request');
@@ -104,7 +116,7 @@ export async function oauthRoute(request,env,fetcher=fetch,now=Date.now()) {
       let params;
       try {params=authorizationParams(url)} catch {return fail('invalid_request',400,'authorization_parameters_rejected')}
       try {await clientMetadata(fetcher)} catch(e) {
-        const reason=/^client_metadata_http_\d{3}$/.test(e?.message||'')?e.message:'client_metadata_validation_failed';
+        const reason=/^client_metadata_(http_\d{3}|timeout|network_error|redirect|body_error|too_large|not_json|invalid_document|identity_mismatch|callback_mismatch|auth_method_mismatch)$/.test(e?.message||'')?e.message:'client_metadata_validation_failed';
         // Only a fixed diagnostic identifier is returned; never OAuth state, codes or tokens.
         return fail('temporarily_unavailable',503,reason);
       }
