@@ -20,6 +20,7 @@ async function setup(){
  const params={client_id:CLIENT,redirect_uri:REDIRECT,resource:RESOURCE,response_type:'code',code_challenge:await digest(verifier),code_challenge_method:'S256',scope:'tasks:read tasks:write',state:'client-state'};
  const authorize=async(overrides={})=>{
   const page=await call('/oauth/authorize?'+new URLSearchParams({...params,...overrides}),{headers:{cookie}});
+  assert.equal(page.headers.get('referrer-policy'),'same-origin');
   const consent=(await page.text()).match(/name="consent" value="([^"]+)"/)[1];
   return {consent,finish:decision=>call('/oauth/authorize',form({consent,decision},cookie))};
  };
