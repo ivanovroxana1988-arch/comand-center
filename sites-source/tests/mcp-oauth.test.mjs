@@ -81,3 +81,23 @@ test('denial and account revocation are explicit, same-origin and leave task dat
  assert.equal(await bearerPrincipal(req('/mcp',{headers:{authorization:'Bearer '+tokens.access_token}}),s.env),null);
  assert.equal(s.sqlite.prepare('SELECT count(*) n FROM tasks').get().n,0);
 });
+
+test('consent failures identify the rejected stage without returning submitted secrets',async()=>{
+ const s=await setup();
+ for(const [data,reason] of [
+  [{decision:'allow'},'consent_token_missing'],
+  [{consent:'invalid',decision:'allow'},'consent_token_malformed'],
+  [{consent:'x'.repeat(43),decision:'allow'},'consent_token_unavailable']
+ ]) {
+  const response=await s.call('/oauth/authorize',form(data,s.cookie));
+  assert.equal(response.status,400);
+  assert.deepEqual(await response.json(),{error:'invalid_request',error_description:reason});
+ }
+ const bad=form({consent:'private-input'},s.cookie);
+ bad.headers['content-type']='application/json';
+ assert.equal((await (await s.call('/oauth/authorize',bad)).json()).error_description,'consent_content_type_rejected');
+ const duplicate=form({},s.cookie);duplicate.body='consent=one&consent=two';
+ assert.equal((await (await s.call('/oauth/authorize',duplicate)).json()).error_description,'consent_duplicate_parameter');
+ const a=await s.authorize();assert.equal((await a.finish('allow')).status,303);
+ assert.equal((await (await a.finish('allow')).json()).error_description,'consent_token_unavailable');
+});

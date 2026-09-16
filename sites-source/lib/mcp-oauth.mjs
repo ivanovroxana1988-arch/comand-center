@@ -130,8 +130,15 @@ export async function oauthRoute(request,env,fetcher=fetch,now=Date.now()) {
     }
     if(request.method!=='POST')return new Response(null,{status:405});
     if(!user||request.headers.get('origin')!==APP_ORIGIN)return fail('access_denied',403);
-    let p;try{p=await bodyParams(request)}catch{return fail()}
-    const row=await takeSecret(env.DB,p.get('consent'),'consent',now);if(!row)return fail();
+    let p;
+    try {p=await bodyParams(request)} catch(e) {
+      const reason={'Invalid content type':'consent_content_type_rejected','Too large':'consent_body_too_large','Duplicate parameter':'consent_duplicate_parameter'}[e?.message]||'consent_body_unreadable';
+      return fail('invalid_request',400,reason);
+    }
+    if(!p.has('consent'))return fail('invalid_request',400,'consent_token_missing');
+    if(!tokenPattern.test(p.get('consent')||''))return fail('invalid_request',400,'consent_token_malformed');
+    const row=await takeSecret(env.DB,p.get('consent'),'consent',now);
+    if(!row)return fail('invalid_request',400,'consent_token_unavailable');
     const data=JSON.parse(row.payload);if(data.user_id!==user.id)return fail('access_denied',403);
     if(p.get('decision')!=='allow')return callback({error:'access_denied',state:data.state});
     const id=random(),expires=now+30*86400000;
