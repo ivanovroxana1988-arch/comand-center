@@ -11,7 +11,7 @@ const form=(data,cookie)=>({method:'POST',headers:{'content-type':'application/x
 async function setup(){
  const sqlite=new DatabaseSync(':memory:');
  for(const file of readdirSync(new URL('../drizzle/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort())sqlite.exec(readFileSync(new URL('../drizzle/'+file,import.meta.url),'utf8'));
- const DB={prepare(sql){return{bind(...args){return{first:async()=>sqlite.prepare(sql).get(...args)||null,all:async()=>({results:sqlite.prepare(sql).all(...args)}),run:async()=>sqlite.prepare(sql).run(...args),execute:()=>sqlite.prepare(sql).run(...args)}}}},async batch(s){sqlite.exec('BEGIN');try{for(const p of s)p.execute();sqlite.exec('COMMIT')}catch(e){sqlite.exec('ROLLBACK');throw e}}};
+ const DB={prepare(sql){return{bind(...args){return{first:async()=>sqlite.prepare(sql).get(...args)||null,all:async()=>({results:sqlite.prepare(sql).all(...args)}),run:async()=>({success:true,meta:{changes:Number(sqlite.prepare(sql).run(...args).changes)},results:[]}),execute:()=>sqlite.prepare(sql).run(...args)}}}},async batch(s){sqlite.exec('BEGIN');try{for(const p of s)p.execute();sqlite.exec('COMMIT')}catch(e){sqlite.exec('ROLLBACK');throw e}}};
  const env={DB,GOOGLE_CLIENT_ID:'client',GOOGLE_CLIENT_SECRET:'test-only'};
  const session='s'.repeat(43),cookie='__Host-cc_session='+session;
  sqlite.prepare('INSERT INTO auth_sessions VALUES (?,?,?,?)').run(await digest(session),'google:123','ivanovroxana1988@gmail.com',Date.now()+28800000);
@@ -100,4 +100,29 @@ test('consent failures identify the rejected stage without returning submitted s
  assert.equal((await (await s.call('/oauth/authorize',duplicate)).json()).error_description,'consent_duplicate_parameter');
  const a=await s.authorize();assert.equal((await a.finish('allow')).status,303);
  assert.equal((await (await a.finish('allow')).json()).error_description,'consent_token_unavailable');
+});
+
+test('consent claim succeeds without mutation rows; concurrent submission authorizes once',async()=>{
+ const s=await setup();
+ const original=s.env.DB.prepare.bind(s.env.DB);
+ s.env.DB.prepare=sql=>{
+  const statement=original(sql);
+  return {bind(...args){
+   const bound=statement.bind(...args);
+   const first=bound.first;
+   bound.first=async()=>{
+    if(/^UPDATE/i.test(sql)) {await first();return null;}
+    return first();
+   };
+   return bound;
+  }};
+ };
+ const a=await s.authorize();
+ const results=await Promise.all([a.finish('allow'),a.finish('allow')]);
+ assert.deepEqual(results.map(r=>r.status).sort(),[303,400]);
+ assert.equal(s.sqlite.prepare('SELECT COUNT(*) AS n FROM mcp_oauth_grants').get().n,1);
+ const success=results.find(r=>r.status===303);
+ const code=new URL(success.headers.get('location')).searchParams.get('code');
+ assert.equal((await s.exchange(code)).status,200);
+ assert.equal((await s.exchange(code)).status,400);
 });

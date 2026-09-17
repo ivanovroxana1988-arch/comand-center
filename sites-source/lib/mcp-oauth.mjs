@@ -25,7 +25,13 @@ async function saveSecret(db,type,payload,expires,grantId=null) {
 }
 async function takeSecret(db,value,type,now) {
   if(!tokenPattern.test(value||''))return null;
-  return db.prepare('UPDATE mcp_oauth_secrets SET used = 1 WHERE hash = ? AND kind = ? AND expires_at > ? AND used = 0 RETURNING *').bind(await digest(value),type,now).first();
+  const hash=await digest(value);
+  const row=await db.prepare('SELECT * FROM mcp_oauth_secrets WHERE hash = ? AND kind = ? AND expires_at > ? AND used = 0').bind(hash,type,now).first();
+  if(!row)return null;
+  // The conditional write is the single-use gate, even if two callers read the row.
+  // Check D1's affected-row metadata rather than depending on UPDATE RETURNING.
+  const result=await db.prepare('UPDATE mcp_oauth_secrets SET used = 1 WHERE hash = ? AND kind = ? AND expires_at > ? AND used = 0').bind(hash,type,now).run();
+  return result.success===true&&result.meta?.changes===1?row:null;
 }
 async function grant(db,id,now) {return db.prepare('SELECT * FROM mcp_oauth_grants WHERE id = ? AND revoked = 0 AND expires_at > ?').bind(id,now).first();}
 export async function bearerPrincipal(request,env,now=Date.now()) {
