@@ -21,6 +21,7 @@ async function setup(){
  const authorize=async(overrides={})=>{
   const page=await call('/oauth/authorize?'+new URLSearchParams({...params,...overrides}),{headers:{cookie}});
   assert.equal(page.headers.get('referrer-policy'),'same-origin');
+  assert.equal(page.headers.get('content-security-policy').split(';').map(v=>v.trim()).find(v=>v.startsWith('form-action ')),"form-action 'self' "+REDIRECT);
   const consent=(await page.text()).match(/name="consent" value="([^"]+)"/)[1];
   return {consent,finish:decision=>call('/oauth/authorize',form({consent,decision},cookie))};
  };
