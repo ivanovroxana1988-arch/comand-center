@@ -31,4 +31,4 @@ Configurarea conexiunii: [MCP_CONNECTION.md](sites-source/MCP_CONNECTION.md).
 
 Workers preia interfața și funcțiile versiunii 12 de pe chatgpt.site: paleta baby blue/ivory, cele 10 spații business, pagini tematice, ierarhie de taskuri și subtaskuri, drag and drop cu Undo, atașamente de maximum 20 MB și modulul Licitații. Conturile Google și OAuth MCP rămân cele existente. Datele Workers se păstrează; bazele celor două site-uri sunt distincte.
 
-Migrațiile 0004 și 0005 extind schema fără ștergerea înregistrărilor existente. Bindingul privat R2 BUCKET este provisionat automat de Wrangler la prima publicare și reutilizat ulterior.
+Migrațiile 0004 și 0005 extind schema fără ștergerea înregistrărilor existente. Bindingul privat R2 BUCKET este creat explicit la prima publicare și reutilizat ulterior.
