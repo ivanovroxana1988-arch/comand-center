@@ -55,10 +55,11 @@ test('consent, issuer, single-use code, PKCE, scoped MCP proposals and browser a
  assert.equal((await s.exchange(code)).status,400);
  const principal=await bearerPrincipal(req('/mcp',{headers:{authorization:'Bearer '+tokens.access_token}}),s.env);assert.equal(principal.id,'google:123');
  const rpc=async(method,params)=> (await s.call('/mcp',{method:'POST',headers:{authorization:'Bearer '+tokens.access_token,'content-type':'application/json',accept:'application/json, text/event-stream'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})})).json();
- assert.equal((await rpc('tools/list')).result.tools.length,7);
+ assert.equal((await rpc('tools/list')).result.tools.length,8);
  const proposal=(await rpc('tools/call',{name:'create_task',arguments:{area:'Licitații',project:'Test',title:'Dosar',owner:'Bogdan'}})).result.structuredContent;
  assert.equal(s.sqlite.prepare('SELECT count(*) n FROM tasks').get().n,0);
- const browserService=taskService(s.env.DB,{id:'google:123',scopes:['tasks:read','tasks:write']});await browserService.decide(proposal.proposal_id,true);
+ const applied=(await rpc('tools/call',{name:'apply_change',arguments:{proposal_id:proposal.proposal_id,confirmed:true}})).result.structuredContent;assert.equal(applied.status,'applied');
+ await rpc('tools/call',{name:'apply_change',arguments:{proposal_id:proposal.proposal_id,confirmed:true}});
  assert.equal((await rpc('tools/call',{name:'get_change_status',arguments:{proposal_id:proposal.proposal_id}})).result.structuredContent.status,'applied');
  assert.equal(s.sqlite.prepare('SELECT count(*) n FROM tasks').get().n,1);
  const bad=await s.code();assert.equal((await s.exchange(bad,{code_verifier:'x'.repeat(43)})).status,400);assert.equal((await s.exchange(bad)).status,400);

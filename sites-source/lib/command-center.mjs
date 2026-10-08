@@ -1,5 +1,5 @@
 // Storage-independent task operations. D1 and the SQLite test adapter share this API.
-export const areas = ['Licitații', 'Personal Brand Bogdan', 'ONG', 'After School', 'Visceral'];
+export const areas = ['Licitații', 'Personal Brand Bogdan', 'ONG', 'After School', 'Visceral', 'Board Games & Simulations'];
 export const owners = ['Roxana', 'Bogdan', 'Împreună'];
 export const statuses = ['De făcut', 'În lucru', 'Așteptăm', 'Blocat', 'Finalizat'];
 export const priorities = ['Urgentă', 'Ridicată', 'Medie', 'Scăzută'];
@@ -86,7 +86,7 @@ export function taskService(db, user, clock=()=>new Date()) {
       if(!p) fail('Propunerea nu există sau nu îți aparține.'); return p;
     },
     async decide(id, accept) {
-      // This method is only exposed through the authenticated confirmation page, NEVER MCP.
+      // The authenticated form or MCP apply_change calls this after explicit user approval.
       write(); if(typeof accept!=='boolean') fail('Decizie invalidă.');
       const p=await this.proposal(id);
       if(p.status==='applied') return {status:'applied',task:JSON.parse(p.result_json)};

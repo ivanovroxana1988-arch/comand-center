@@ -3,6 +3,7 @@ import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } fr
 import handler from "vinext/server/app-router-entry";
 import { authGate } from '../lib/google-auth.mjs';
 import { oauthRoute } from '../lib/mcp-oauth.mjs';
+import { secureAppResponse } from '../lib/response-security.mjs';
 
 interface Env {
   ASSETS: Fetcher;
@@ -67,12 +68,7 @@ const worker = {
     }
 
     const result=await handler.fetch(request, env, ctx);
-    const secured=new Response(result.body,result);
-    secured.headers.set('cache-control','private, no-store');
-    secured.headers.set('referrer-policy','no-referrer');
-    secured.headers.set('x-content-type-options','nosniff');
-    secured.headers.set('x-frame-options','DENY');
-    return secured;
+    return secureAppResponse(result);
   },
 };
 

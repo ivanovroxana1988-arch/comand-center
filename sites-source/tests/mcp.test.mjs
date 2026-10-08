@@ -61,14 +61,27 @@ test('validation rejects invalid dates, scripts, unknown fields and missing pare
   assert.throws(()=>validateTask({...input,sql:'DROP TABLE tasks'}));
   await assert.rejects(service.propose('create_subtask',{title:'No parent',parent_task_id:999}));
 });
-test('MCP exposes tools and proposals but never an approval tool',async()=>{
+test('MCP applies only explicitly confirmed proposals from the proposing identity',async()=>{
   const {service}=setup();const origin='https://example.test';
   const call=async(method,params)=> (await mcpResponse(new Request(origin+'/mcp',{method:'POST',headers:{'content-type':'application/json',accept:'application/json, text/event-stream'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})}),service,origin)).json();
   assert.equal((await call('initialize',{protocolVersion:'2025-06-18'})).result.protocolVersion,'2025-06-18');
   const listed=(await call('tools/list')).result.tools;
-  assert.equal(listed.length,7);assert.ok(!listed.some(t=>/approve|decide|commit/.test(t.name)));
+  assert.equal(listed.length,8);assert.ok(listed.some(t=>t.name==='apply_change'));
   const p=(await call('tools/call',{name:'create_task',arguments:input})).result.structuredContent;
   assert.equal(p.status,'pending');assert.match(p.confirmation_url,/confirm-change/);
   assert.equal((await service.list()).tasks.length,0);
-  assert.equal((await call('tools/call',{name:'approve',arguments:{}})).error.code,-32602);
+  const rejected=(await call('tools/call',{name:'apply_change',arguments:{proposal_id:p.proposal_id,confirmed:false}})).result;
+  assert.equal(rejected.isError,true);assert.equal((await service.list()).tasks.length,0);
+  const saved=(await call('tools/call',{name:'apply_change',arguments:{proposal_id:p.proposal_id,confirmed:true}})).result.structuredContent;
+  assert.equal(saved.status,'applied');
+  await call('tools/call',{name:'apply_change',arguments:{proposal_id:p.proposal_id,confirmed:true}});
+  assert.equal((await service.list()).tasks.length,1);
+});
+
+test('Board Games & Simulations is supported by task validation and dashboard storage',async()=>{
+ const {service}=setup();
+ const proposal=await service.propose('create_task',{...input,area:'Board Games & Simulations',project:'Alien Invasion',title:'Concept și obiective educaționale'});
+ const saved=await service.decide(proposal.proposal_id,true);
+ assert.equal(saved.task.area,'Board Games & Simulations');
+ assert.equal((await service.list({area:'Board Games & Simulations'})).tasks[0].id,saved.task.id);
 });

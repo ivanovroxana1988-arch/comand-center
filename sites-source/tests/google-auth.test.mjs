@@ -57,3 +57,15 @@ test('login binds browser state, consumes callback once, issues expiring session
  assert.equal(await sessionUser(request('/',{headers:{cookie:session}}),env),null);
  assert.equal(sqlite.prepare('SELECT count(*) n FROM tasks').get().n,0);
 });
+
+test('confirmation and logout pages preserve same-origin form headers',async()=>{
+ const {secureAppResponse}=await import('../lib/response-security.mjs');
+ const page=secureAppResponse(new Response('<form method="post"></form>'));
+ assert.equal(page.headers.get('referrer-policy'),'same-origin');
+ assert.equal(page.headers.get('cache-control'),'private, no-store');
+ assert.equal(page.headers.get('x-frame-options'),'DENY');
+ const {env}=setup();
+ const logout=await authGate(request('/auth/logout'),env);
+ assert.equal(logout.headers.get('referrer-policy'),'same-origin');
+ for(const origin of ['null','https://attacker.test'])assert.equal((await authGate(request('/api/task-changes/decide',{method:'POST',headers:{origin}}),env)).status,403);
+});

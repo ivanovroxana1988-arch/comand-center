@@ -2,8 +2,8 @@
 import {useEffect,useMemo,useState} from "react";
 import {AlertTriangle,CalendarDays,CheckCircle2,CirclePlus,Clock3,ExternalLink,Filter,LayoutDashboard,ListTodo,Trash2,X} from "lucide-react";
 type Task={id:number;area:string;project:string;title:string;owner:string;dueDate:string|null;status:string;priority:string;nextStep:string;link:string;notes:string};
-const areas=["Licitații","Personal Brand Bogdan","ONG","After School","Visceral"],statuses=["De făcut","În lucru","Așteptăm","Blocat","Finalizat"],owners=["Roxana","Bogdan","Împreună"],priorities=["Urgentă","Ridicată","Medie","Scăzută"];
-const initials:Record<string,string>={"Licitații":"LI","Personal Brand Bogdan":"PB","ONG":"ON","After School":"AS","Visceral":"VI"};
+const areas=["Licitații","Personal Brand Bogdan","ONG","After School","Visceral","Board Games & Simulations"],statuses=["De făcut","În lucru","Așteptăm","Blocat","Finalizat"],owners=["Roxana","Bogdan","Împreună"],priorities=["Urgentă","Ridicată","Medie","Scăzută"];
+const initials:Record<string,string>={"Licitații":"LI","Personal Brand Bogdan":"PB","ONG":"ON","After School":"AS","Visceral":"VI","Board Games & Simulations":"BG"};
 const blank={area:"Licitații",project:"",title:"",owner:"Roxana",dueDate:"",status:"De făcut",priority:"Medie",nextStep:"",link:"",notes:""};
 const cls=(s:string)=>s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replaceAll(" ","-");
 const shortDate=(v:string|null)=>v?new Intl.DateTimeFormat("ro-RO",{day:"2-digit",month:"short"}).format(new Date(v+"T12:00:00")):"Fără termen";

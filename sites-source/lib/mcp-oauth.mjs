@@ -132,7 +132,7 @@ export async function oauthRoute(request,env,fetcher=fetch,now=Date.now()) {
       }
       if(!user)return redirect('/auth/google/start?return_to='+encodeURIComponent(url.pathname+url.search));
       const csrf=await saveSecret(env.DB,'consent',{...params,user_id:user.id},now+600000);
-      return html(`<h1>Conectează ChatGPT</h1><p>Cont: <strong>${escape(user.email)}</strong></p><ul><li>Citirea taskurilor din cele cinci arii.</li>${params.scope.includes('tasks:write')?'<li>Propuneri de creare, modificare și finalizare, cu confirmare separată pentru fiecare schimbare.</li>':''}</ul><p>Poți revoca accesul oricând. Conexiunea este valabilă cel mult 30 de zile înainte de o nouă autorizare.</p><form method="post" action="/oauth/authorize"><input type="hidden" name="consent" value="${csrf}"><button name="decision" value="allow">Autorizează ChatGPT</button><button name="decision" value="deny">Anulează</button></form>`);
+      return html(`<h1>Conectează ChatGPT</h1><p>Cont: <strong>${escape(user.email)}</strong></p><ul><li>Citirea taskurilor din dashboard.</li>${params.scope.includes('tasks:write')?'<li>Creare, modificare și finalizare prin propuneri. Salvarea se face numai după confirmarea explicită în chat sau în pagina de verificare.</li>':''}</ul><p>Poți revoca accesul oricând. Conexiunea este valabilă cel mult 30 de zile înainte de o nouă autorizare.</p><form method="post" action="/oauth/authorize"><input type="hidden" name="consent" value="${csrf}"><button name="decision" value="allow">Autorizează ChatGPT</button><button name="decision" value="deny">Anulează</button></form>`);
     }
     if(request.method!=='POST')return new Response(null,{status:405});
     if(!user||request.headers.get('origin')!==APP_ORIGIN)return fail('access_denied',403);

@@ -1,7 +1,8 @@
 import { asc, eq } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { tasks } from "../../../db/schema";
-const areas=["Licitații","Personal Brand Bogdan","ONG","After School","Visceral"], owners=["Roxana","Bogdan","Împreună"], statuses=["De făcut","În lucru","Așteptăm","Blocat","Finalizat"], priorities=["Urgentă","Ridicată","Medie","Scăzută"];
+import { areas } from "../../../lib/command-center.mjs";
+const owners=["Roxana","Bogdan","Împreună"], statuses=["De făcut","În lucru","Așteptăm","Blocat","Finalizat"], priorities=["Urgentă","Ridicată","Medie","Scăzută"];
 const clean=(v:unknown,n=500)=>typeof v==="string"?v.trim().slice(0,n):"";
 const message=(e:unknown)=>{const m=e instanceof Error?e.message:"Eroare neașteptată";return m.includes("no such table")?"Baza de date nu este încă pregătită.":m};
 export async function GET(){try{return Response.json({tasks:await getDb().select().from(tasks).orderBy(asc(tasks.status),asc(tasks.dueDate),asc(tasks.id))})}catch(e){return Response.json({error:message(e)},{status:500})}}

@@ -4,7 +4,7 @@ Implemented in this repository: JSON-RPC over stateless HTTP POST at `/mcp`, six
 
 ## Confirmation contract
 
-`create_task`, `update_task`, `create_subtask`, and `complete_task` prepare a proposal; they do NOT immediately mutate tasks. Responses contain before/after, expiry and a confirmation link. Only the proposing, signed-in user can approve or cancel through the same-origin HTML form. The agent must not submit that form for the user. A write is successful only after `get_change_status` returns `applied`. A plain “yes” in chat is not yet an implemented approval mechanism.
+`create_task`, `update_task`, `create_subtask`, and `complete_task` prepare a proposal; they do NOT immediately mutate tasks. Responses contain before/after, expiry and a confirmation link. Only the proposing, signed-in user can approve or cancel through the same-origin HTML form. The agent may call apply_change for the exact reviewed proposal only after explicit user approval in chat. The browser confirmation form remains available. A write is successful only after `get_change_status` returns `applied`. An explicit approval in chat can now be applied through apply_change(confirmed=true).
 
 Proposals expire after 15 minutes. SQL batches atomically claim, mutate and record the result; retries return the saved receipt. Approval rejects changes to the target since the proposal, including edits made at the same timestamp. Parent tasks cannot complete with unfinished children. Reparenting is intentionally unsupported.
 
