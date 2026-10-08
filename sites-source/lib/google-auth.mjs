@@ -18,7 +18,7 @@ const redirect = (url,extra={}) => response(null,303,{location:url,...extra});
 function safeReturn(value) {
   if(typeof value!=='string'||value.length>4096||!value.startsWith('/'))return '/';
   const u=new URL(value,APP_ORIGIN);
-  return u.origin===APP_ORIGIN&&['/oauth/authorize','/oauth/connections','/confirm-change'].includes(u.pathname)?u.pathname+u.search:'/';
+  return u.origin===APP_ORIGIN&&(['/','/oauth/authorize','/oauth/connections','/confirm-change','/work-plans/alien-invasion'].includes(u.pathname)||u.pathname==='/licitatii'||u.pathname.startsWith('/licitatii/'))?u.pathname+u.search:'/';
 }
 const page = (message,action='<a href="/auth/google/start">Continuă cu Google</a>') => `<!doctype html><html lang="ro"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Command Center</title><style>body{font:18px system-ui;background:#f5f7fb;color:#17223b;margin:0;padding:8vh 24px}main{max-width:540px;margin:auto;padding:32px;background:white;border-radius:16px}h1{font-size:28px}a,button{display:inline-block;background:#244fce;color:white;padding:14px 20px;border:0;border-radius:8px;font:inherit;text-decoration:none}p{line-height:1.6}</style><main><h1>Bogdan &amp; Roxana<br>Command Center</h1><p>${message}</p>${action}</main></html>`;
 

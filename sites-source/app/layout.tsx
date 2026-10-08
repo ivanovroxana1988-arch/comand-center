@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import "./editorial.css";
 
 export const metadata: Metadata = {
   title: "Bogdan & Roxana — Command Center",
@@ -18,7 +17,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ro">
-      <body className="antialiased">{children}<footer style={{padding:16,textAlign:'right'}}><a href="/oauth/connections">Acces ChatGPT</a>{' · '}<a href="/auth/logout">Deconectare</a></footer></body>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }

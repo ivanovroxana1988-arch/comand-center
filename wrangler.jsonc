@@ -41,5 +41,10 @@
       "database_id": "267f8fd4-c357-4e74-87f0-2954ce6d36f5",
       "migrations_dir": "sites-source/drizzle"
     }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET"
+    }
   ]
 }

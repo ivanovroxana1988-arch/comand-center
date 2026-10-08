@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `ecosystem_pages_area_title` ON `ecosystem_pages` (`area`,`title`);

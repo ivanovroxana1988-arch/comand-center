@@ -1,10 +1,11 @@
 // Storage-independent task operations. D1 and the SQLite test adapter share this API.
-export const areas = ['Licitații', 'Personal Brand Bogdan', 'ONG', 'After School', 'Visceral', 'Board Games & Simulations'];
+import { areas, aliases, canonicalArea } from './ecosystem.mjs';
+export { areas };
 export const owners = ['Roxana', 'Bogdan', 'Împreună'];
 export const statuses = ['De făcut', 'În lucru', 'Așteptăm', 'Blocat', 'Finalizat'];
 export const priorities = ['Urgentă', 'Ridicată', 'Medie', 'Scăzută'];
-const columns = { area:'area', project:'project', title:'title', owner:'owner', dueDate:'due_date', status:'status', priority:'priority', nextStep:'next_step', link:'link', notes:'notes', parent_task_id:'parent_task_id' };
-const selection = `id, area, project, title, owner, due_date AS dueDate, status, priority, next_step AS nextStep, link, notes, parent_task_id, created_at AS createdAt, updated_at AS updatedAt`;
+const columns = { area:'area', project:'project', title:'title', owner:'owner', dueDate:'due_date', status:'status', priority:'priority', nextStep:'next_step', link:'link', notes:'notes', parent_task_id:'parent_task_id', tenderId:'tender_id' };
+const selection = `id, area, project, title, owner, due_date AS dueDate, status, priority, next_step AS nextStep, link, notes, parent_task_id, tender_id AS tenderId, created_at AS createdAt, updated_at AS updatedAt`;
 export class TaskError extends Error {}
 const fail = message => { throw new TaskError(message); };
 const object = value => value && typeof value === 'object' && !Array.isArray(value);
@@ -18,7 +19,7 @@ export function validateTask(input, partial=false) {
   const out={};
   for (const [key,value] of Object.entries(input)) {
     if (!(key in columns)) fail(`Câmp necunoscut: ${key}`);
-    if (key==='parent_task_id') { out[key]=value===null?null:positiveId(value); continue; }
+    if (key==='parent_task_id'||key==='tenderId') { out[key]=value===null?null:positiveId(value); continue; }
     if (key==='dueDate') {
       if (value===null || value==='') { out[key]=null; continue; }
       if (typeof value!=='string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(value)) || new Date(value).toISOString().slice(0,10)!==value) fail('Data trebuie să fie validă, în format YYYY-MM-DD.');
@@ -31,7 +32,7 @@ export function validateTask(input, partial=false) {
   }
   if(!partial) {
     for(const key of ['area','project','title','owner']) if(!out[key]) fail(`Câmp obligatoriu: ${key}`);
-    return {status:'De făcut',priority:'Medie',dueDate:null,nextStep:'',link:'',notes:'',parent_task_id:null,...out};
+    return {status:'De făcut',priority:'Medie',dueDate:null,nextStep:'',link:'',notes:'',parent_task_id:null,tenderId:null,...out};
   }
   if('parent_task_id' in out) fail('Mutarea unui task sub alt părinte nu este permisă.');
   if(!Object.keys(out).length) fail('Nu ai indicat nicio modificare.');
@@ -52,7 +53,7 @@ export function taskService(db, user, clock=()=>new Date()) {
       for(const [key,value] of Object.entries(filters)) {
         if(['area','owner','status','project','parent_task_id'].includes(key)) {
           if(key==='parent_task_id') positiveId(value); else text(value,120,true);
-          where.push(`${columns[key]}=?`); args.push(value);
+          if(key==='area'){const matches=[canonicalArea(value),...Object.keys(aliases).filter(k=>aliases[k]===canonicalArea(value))];where.push(`area IN (${matches.map(()=>'?').join(',')})`);args.push(...matches)}else{where.push(`${columns[key]}=?`); args.push(value);}
         } else if(!['limit','offset'].includes(key)) fail('Filtru necunoscut.');
       }
       const limit=filters.limit??50, offset=filters.offset??0;
@@ -77,6 +78,7 @@ export function taskService(db, user, clock=()=>new Date()) {
         if(changes.status==='Finalizat' && await one("SELECT id FROM tasks WHERE parent_task_id=? AND status!='Finalizat' LIMIT 1",[taskId])) fail('Finalizează mai întâi subtaskurile.');
       } else fail('Operație necunoscută.');
       if(changes.parent_task_id) await get(changes.parent_task_id);
+      if(changes.tenderId && !await one('SELECT id FROM tenders WHERE id=?',[changes.tenderId])) fail('Licitația nu există.');
       const id=crypto.randomUUID(), now=clock(), expires=new Date(now.getTime()+15*60*1000).toISOString();
       await stmt('INSERT INTO task_changes (id,user_id,operation,task_id,payload,before_json,expires_at,status,created_at) VALUES (?,?,?,?,?,?,?,?,?)',[id,user.id,operation,taskId,JSON.stringify(changes),JSON.stringify(before),expires,'pending',now.toISOString()]).run();
       return {proposal_id:id,status:'pending',before,after:{...before,...changes},expires_at:expires,confirmation_required:true};
@@ -86,7 +88,7 @@ export function taskService(db, user, clock=()=>new Date()) {
       if(!p) fail('Propunerea nu există sau nu îți aparține.'); return p;
     },
     async decide(id, accept) {
-      // The authenticated form or MCP apply_change calls this after explicit user approval.
+      // Called by the authenticated form or MCP after explicit user confirmation.
       write(); if(typeof accept!=='boolean') fail('Decizie invalidă.');
       const p=await this.proposal(id);
       if(p.status==='applied') return {status:'applied',task:JSON.parse(p.result_json)};

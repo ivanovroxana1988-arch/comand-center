@@ -8,6 +8,7 @@ import { secureAppResponse } from '../lib/response-security.mjs';
 interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
+  BUCKET: R2Bucket;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   COMMAND_CENTER_SETUP_MODE?: string;
@@ -36,7 +37,7 @@ const worker = {
     // Only compiled presentation assets are public; every application/data route
     // continues through the session gate below. Never return login HTML as CSS/JS.
     const assetPath = new URL(request.url).pathname;
-    if (/^\/assets\/[A-Za-z0-9_-]+\.(css|js|woff2?)$/.test(assetPath) || assetPath === '/favicon.svg') {
+    if (/^\/assets\/[A-Za-z0-9_-]+\.(css|js|woff2?)$/.test(assetPath) || /^\/fonts\/(manrope|dm-serif)-(latin|extended)\.woff2$/.test(assetPath) || assetPath === '/favicon.svg') {
       if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method not allowed', {status:405});
       const asset = await env.ASSETS.fetch(request);
       const response = new Response(asset.body, asset);

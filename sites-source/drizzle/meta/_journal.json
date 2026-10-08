@@ -29,6 +29,20 @@
       "when": 1789051081444,
       "tag": "0003_goofy_hitman",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791460959060,
+      "tag": "0004_ecosystem_parity",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1791461051020,
+      "tag": "0005_page_uniqueness",
+      "breakpoints": true
     }
   ]
 }

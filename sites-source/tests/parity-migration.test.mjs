@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+import {readFileSync,readdirSync} from 'node:fs';
+test('ecosystem migration retains existing tasks and Google/MCP sessions',()=>{
+ const db=new DatabaseSync(':memory:');
+ const files=readdirSync(new URL('../drizzle/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort();
+ const migrate=f=>db.exec(readFileSync(new URL('../drizzle/'+f,import.meta.url),'utf8'));
+ files.filter(f=>f<'0004').forEach(migrate);
+ db.exec("INSERT INTO tasks(area,project,title,owner,created_at,updated_at) VALUES('ONG','Existing','Keep me','Roxana','now','now'); INSERT INTO auth_sessions VALUES('hash','user','roxana@example.test',123); INSERT INTO mcp_oauth_grants VALUES('grant','user','client','resource','tasks:read',123,0)");
+ const task=db.prepare('SELECT * FROM tasks').get();
+ files.filter(f=>f>='0004').forEach(migrate);
+ const updated=db.prepare('SELECT * FROM tasks').get();
+ for(const [key,value] of Object.entries(task))assert.equal(updated[key],value);
+ assert.equal(updated.tender_id,null);assert.equal(updated.parent_id,null);
+ assert.equal(db.prepare('SELECT user_id FROM auth_sessions').get().user_id,'user');
+ assert.equal(db.prepare('SELECT id FROM mcp_oauth_grants').get().id,'grant');
+ db.exec("INSERT INTO ecosystem_pages(area,title,created_at) VALUES('Training & Workshops','Page','now')");
+ assert.throws(()=>db.exec("INSERT INTO ecosystem_pages(area,title,created_at) VALUES('Training & Workshops','Page','now')"),/UNIQUE/);
+});
