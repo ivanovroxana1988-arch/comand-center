@@ -6,3 +6,18 @@ self.addEventListener('fetch',event=>{
  if(event.request.method!=='GET'||event.request.mode!=='navigate'||new URL(event.request.url).origin!==self.location.origin)return;
  event.respondWith(fetch(event.request).catch(()=>caches.match('/offline.html')));
 });
+
+self.addEventListener('push',event=>{
+ event.waitUntil(self.registration.showNotification('Command Center',{
+  body:'Ai un task nou, o modificare sau un termen care te privește. Deschide aplicația pentru detalii.',
+  icon:'/icons/app-192.png',badge:'/icons/app-192.png',tag:'command-center-update',renotify:true,data:{url:'/'},
+ }));
+});
+self.addEventListener('notificationclick',event=>{
+ event.notification.close();
+ event.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(async clients=>{
+  const existing=clients.find(client=>new URL(client.url).origin===self.location.origin);
+  if(existing){await existing.navigate('/');return existing.focus()}
+  return self.clients.openWindow('/');
+ }));
+});

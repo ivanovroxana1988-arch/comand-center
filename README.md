@@ -37,4 +37,12 @@ Migrațiile 0004 și 0005 extind schema fără ștergerea înregistrărilor exis
 
 Instalare PWA din Chrome pe Android sau prin Partajează → Adaugă pe ecranul principal în Safari pe iPhone. Manifestul folosește modul standalone și iconuri locale. Aplicația și dashboardul folosesc aceeași bază D1.
 
-Migrația 0006 adaugă un contor de revizie și triggere pentru taskuri, pagini, organizare, atașamente și licitații. Fluxul SSE verifică sesiunea Google și revizia la fiecare 2 secunde; închide conexiunea la revocare, anulare sau trecerea aplicației în fundal. Formularele și mutările active amână refresh-ul până la finalizare. Nu există notificări push în fundal. Service worker-ul păstrează numai pagina publică offline; taskurile, sesiunile și documentele rămân exclusiv în rețea.
+Migrația 0006 adaugă un contor de revizie și triggere pentru taskuri, pagini, organizare, atașamente și licitații. Fluxul SSE verifică sesiunea Google și revizia la fiecare 2 secunde; închide conexiunea la revocare, anulare sau trecerea aplicației în fundal. Formularele și mutările active amână refresh-ul până la finalizare. Notificările push sunt opționale și se activează separat pe fiecare dispozitiv. Service worker-ul păstrează numai pagina publică offline; taskurile, sesiunile și documentele rămân exclusiv în rețea.
+
+## Notificări personale
+
+Abonarea este asociată exclusiv identității Google verificate. Roxana primește evenimente pentru owner=Roxana, Bogdan pentru owner=Bogdan, iar Împreună notifică ambele conturi. Telefonul unui alt cont nu poate fi preluat prin simpla schimbare a ownerului în JSON. Maximum cinci dispozitive per cont; Test și Oprește acționează doar asupra abonamentului propriu.
+
+Migrația 0007 adaugă abonamente, evenimente, livrări idempotente și cheia de semnare VAPID, generată pe server și păstrată numai în baza D1 protejată. API-ul returnează doar cheia publică. Push-urile nu conțin payload: furnizorul telefonului nu primește titluri de task, note sau documente. Service worker-ul arată o alertă generală și deschide aplicația, unde detaliile cer autentificare.
+
+Evenimentele pentru taskuri noi și modificări sunt create prin triggere D1, indiferent dacă schimbarea vine din chat sau din dashboard. Worker-ul încearcă livrarea după scriere; un cron la fiecare minut reia erorile temporare și pregătește o alertă zilnică pentru termenele active, după ora 09:00 în fusul orar al dispozitivului. Abonamentele expirate sunt eliminate; evenimentele nu sunt trimise retroactiv la activarea unui telefon. Livrările pot întârzia în funcție de internet și de sistemul de operare. Fiecare utilizator trebuie să acorde permisiunea pe telefonul lui.

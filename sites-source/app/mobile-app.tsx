@@ -1,6 +1,7 @@
 'use client';
 import {useEffect,useState} from 'react';
 import './mobile-app.css';
+import PushControls from './push-controls';
 type InstallPrompt=Event&{prompt:()=>Promise<void>;userChoice:Promise<{outcome:string}>};
 export default function MobileApp(){
  const [status,setStatus]=useState('Se conectează…'),[install,setInstall]=useState<InstallPrompt|null>(null),[installed,setInstalled]=useState(false),[help,setHelp]=useState(false);
@@ -36,5 +37,5 @@ export default function MobileApp(){
   await install.prompt();const choice=await install.userChoice;
   if(choice.outcome==='accepted')setInstalled(true);setInstall(null);
  }
- return <div className="app-dock"><span className="sync-status" role="status"><i className={status==='Sincronizat'||status==='Sincronizare activă'?'connected':''}/>{status}</span>{!installed&&<button onClick={installApp}>Instalează aplicația</button>}{status==='Autentificare necesară'&&<a href="/auth/google/start">Conectare Google</a>}{help&&<div className="install-help"><strong>Command Center pe telefon</strong><p>Android: deschide în Chrome → meniul ⋮ → Instalează aplicația / Adaugă pe ecranul de pornire.</p><p>iPhone: deschide în Safari → Partajează → Adaugă pe ecranul principal.</p><button onClick={()=>setHelp(false)}>Am înțeles</button></div>}</div>;
+ return <div className="app-dock"><PushControls/><span className="sync-status" role="status"><i className={status==='Sincronizat'||status==='Sincronizare activă'?'connected':''}/>{status}</span>{!installed&&<button onClick={installApp}>Instalează aplicația</button>}{status==='Autentificare necesară'&&<a href="/auth/google/start">Conectare Google</a>}{help&&<div className="install-help"><strong>Command Center pe telefon</strong><p>Android: deschide în Chrome → meniul ⋮ → Instalează aplicația / Adaugă pe ecranul de pornire.</p><p>iPhone: deschide în Safari → Partajează → Adaugă pe ecranul principal.</p><button onClick={()=>setHelp(false)}>Am înțeles</button></div>}</div>;
 }

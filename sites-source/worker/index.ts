@@ -1,6 +1,7 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
+import { notificationRoute, drainNotifications, enqueueDueReminders } from '../lib/push-notifications.mjs';
 import { workspaceStream } from '../lib/workspace-stream.mjs';
 import { sessionUser } from '../lib/google-auth.mjs';
 import { authGate } from '../lib/google-auth.mjs';
@@ -35,6 +36,9 @@ interface ExecutionContext {
 // const imageConfig: ImageConfig = { dangerouslyAllowSVG: true };
 
 const worker = {
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil((async()=>{await enqueueDueReminders(env.DB);await drainNotifications(env.DB);const cutoff=new Date(Date.now()-30*86400000).toISOString();await env.DB.prepare('DELETE FROM notification_deliveries WHERE event_id IN (SELECT id FROM notification_events WHERE created_at<?)').bind(cutoff).run();await env.DB.prepare('DELETE FROM notification_events WHERE created_at<?').bind(cutoff).run()})());
+  },
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     // Only compiled presentation assets are public; every application/data route
     // continues through the session gate below. Never return login HTML as CSS/JS.
@@ -50,12 +54,14 @@ const worker = {
     }
     try {
       const oauth = await oauthRoute(request, env);
-      if (oauth) return oauth;
+      if (oauth){if(request.method==='POST'&&assetPath==='/mcp')ctx.waitUntil(drainNotifications(env.DB).catch(()=>{}));return oauth;}
       const access=await authGate(request,env);
       if(access instanceof Response)return access;
     } catch {
       return new Response('Serviciul este temporar indisponibil. Reîncearcă în câteva momente.',{status:503,headers:{'cache-control':'no-store'}});
     }
+    const notifications=await notificationRoute(request,env);
+    if(notifications)return notifications;
     if(assetPath==='/api/workspace-events'){
       if(request.method!=='GET')return new Response('Method not allowed',{status:405});
       return workspaceStream({signal:request.signal,authorized:async()=>!!(await sessionUser(request,env)),readRevision:async()=>{const row=await env.DB.prepare('SELECT revision FROM workspace_revision WHERE id=1').first<{revision:number}>();return row?.revision??0}});
@@ -77,6 +83,7 @@ const worker = {
     }
 
     const result=await handler.fetch(request, env, ctx);
+    if(!['GET','HEAD'].includes(request.method))ctx.waitUntil(drainNotifications(env.DB).catch(()=>{}));
     return secureAppResponse(result);
   },
 };

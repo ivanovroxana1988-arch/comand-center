@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex, primaryKey } from "drizzle-orm/sqlite-core";
 
 export const tasks = sqliteTable("tasks", {
   id: integer("id").primaryKey({ autoIncrement: true }), area: text("area").notNull(),
@@ -80,3 +80,8 @@ export const mcpOauthSecrets = sqliteTable('mcp_oauth_secrets', {
 });
 
 export const workspaceRevision = sqliteTable("workspace_revision", {id:integer("id").primaryKey(),revision:integer("revision").notNull().default(0)});
+
+export const notificationConfig = sqliteTable("notification_config", {id:text("id").primaryKey(),value:text("value").notNull()});
+export const pushSubscriptions = sqliteTable("push_subscriptions", {id:text("id").primaryKey(),userId:text("user_id").notNull(),owner:text("owner").notNull(),endpoint:text("endpoint").notNull(),timeZone:text("time_zone").notNull(),createdAt:text("created_at").notNull()});
+export const notificationEvents = sqliteTable("notification_events", {id:text("id").primaryKey(),taskId:integer("task_id"),owner:text("owner").notNull(),kind:text("kind").notNull(),createdAt:text("created_at").notNull()});
+export const notificationDeliveries = sqliteTable("notification_deliveries", {eventId:text("event_id").notNull(),subscriptionId:text("subscription_id").notNull(),status:text("status").notNull(),attempts:integer("attempts").notNull(),nextAttempt:integer("next_attempt").notNull()},t=>[primaryKey({columns:[t.eventId,t.subscriptionId]})]);
