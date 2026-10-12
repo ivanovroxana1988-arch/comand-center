@@ -78,3 +78,5 @@ export const mcpOauthSecrets = sqliteTable('mcp_oauth_secrets', {
   hash: text('hash').primaryKey(), kind: text('kind').notNull(), payload: text('payload').notNull(),
   grantId: text('grant_id'), expiresAt: integer('expires_at').notNull(), used: integer('used').notNull().default(0),
 });
+
+export const workspaceRevision = sqliteTable("workspace_revision", {id:integer("id").primaryKey(),revision:integer("revision").notNull().default(0)});

@@ -1,6 +1,8 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
+import { workspaceStream } from '../lib/workspace-stream.mjs';
+import { sessionUser } from '../lib/google-auth.mjs';
 import { authGate } from '../lib/google-auth.mjs';
 import { oauthRoute } from '../lib/mcp-oauth.mjs';
 import { secureAppResponse } from '../lib/response-security.mjs';
@@ -37,11 +39,13 @@ const worker = {
     // Only compiled presentation assets are public; every application/data route
     // continues through the session gate below. Never return login HTML as CSS/JS.
     const assetPath = new URL(request.url).pathname;
-    if (/^\/assets\/[A-Za-z0-9_-]+\.(css|js|woff2?)$/.test(assetPath) || /^\/fonts\/(manrope|dm-serif)-(latin|extended)\.woff2$/.test(assetPath) || assetPath === '/favicon.svg') {
+    if (/^\/assets\/[A-Za-z0-9_-]+\.(css|js|woff2?)$/.test(assetPath) || /^\/fonts\/(manrope|dm-serif)-(latin|extended)\.woff2$/.test(assetPath) || ['/manifest.webmanifest','/sw.js','/offline.html'].includes(assetPath) || /^\/icons\/app-(192|512|maskable)\.png$/.test(assetPath) || assetPath === '/favicon.svg') {
       if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method not allowed', {status:405});
       const asset = await env.ASSETS.fetch(request);
       const response = new Response(asset.body, asset);
       response.headers.set('x-content-type-options', 'nosniff');
+      if(assetPath==='/sw.js'){response.headers.set('cache-control','no-cache');response.headers.set('service-worker-allowed','/')}
+      if(assetPath==='/manifest.webmanifest')response.headers.set('content-type','application/manifest+json');
       return response;
     }
     try {
@@ -51,6 +55,10 @@ const worker = {
       if(access instanceof Response)return access;
     } catch {
       return new Response('Serviciul este temporar indisponibil. Reîncearcă în câteva momente.',{status:503,headers:{'cache-control':'no-store'}});
+    }
+    if(assetPath==='/api/workspace-events'){
+      if(request.method!=='GET')return new Response('Method not allowed',{status:405});
+      return workspaceStream({signal:request.signal,authorized:async()=>!!(await sessionUser(request,env)),readRevision:async()=>{const row=await env.DB.prepare('SELECT revision FROM workspace_revision WHERE id=1').first<{revision:number}>();return row?.revision??0}});
     }
     const cleanHeaders=new Headers(request.headers);
     for(const name of [...cleanHeaders.keys()])if(name.startsWith('oai-authenticated-'))cleanHeaders.delete(name);

@@ -8,7 +8,7 @@ Dashboardul și conectorul ChatGPT folosesc aceeași bază D1, configurată în 
 1. Agentul citește taskurile existente și creează o propunere cu create_task, update_task, create_subtask sau complete_task.
 2. Utilizatorul vede modificările înainte/după și confirmă explicit în chat.
 3. Agentul apelează apply_change cu ID-ul exact al propunerii și confirmed=true.
-4. Statusul applied confirmă salvarea. Dashboardul reîncarcă datele la revenire și la fiecare 30 de secunde.
+4. Statusul applied confirmă salvarea. Dashboardul primește revizia workspace-ului printr-un flux autentificat și reîncarcă datele în aproximativ 2 secunde, cât timp aplicația este vizibilă.
 
 Confirmarea în browser rămâne disponibilă. Referrer-Policy same-origin permite verificarea Origin la trimiterea formularului, fără transmiterea referrerului către alte site-uri. Origin și Sec-Fetch-Site continuă să fie verificate.
 
@@ -32,3 +32,9 @@ Configurarea conexiunii: [MCP_CONNECTION.md](sites-source/MCP_CONNECTION.md).
 Workers preia interfața și funcțiile versiunii 12 de pe chatgpt.site: paleta baby blue/ivory, cele 10 spații business, pagini tematice, ierarhie de taskuri și subtaskuri, drag and drop cu Undo, atașamente de maximum 20 MB și modulul Licitații. Conturile Google și OAuth MCP rămân cele existente. Datele Workers se păstrează; bazele celor două site-uri sunt distincte.
 
 Migrațiile 0004 și 0005 extind schema fără ștergerea înregistrărilor existente. Bindingul privat R2 BUCKET este creat explicit la prima publicare și reutilizat ulterior.
+
+## Aplicația pe telefon
+
+Instalare PWA din Chrome pe Android sau prin Partajează → Adaugă pe ecranul principal în Safari pe iPhone. Manifestul folosește modul standalone și iconuri locale. Aplicația și dashboardul folosesc aceeași bază D1.
+
+Migrația 0006 adaugă un contor de revizie și triggere pentru taskuri, pagini, organizare, atașamente și licitații. Fluxul SSE verifică sesiunea Google și revizia la fiecare 2 secunde; închide conexiunea la revocare, anulare sau trecerea aplicației în fundal. Formularele și mutările active amână refresh-ul până la finalizare. Nu există notificări push în fundal. Service worker-ul păstrează numai pagina publică offline; taskurile, sesiunile și documentele rămân exclusiv în rețea.

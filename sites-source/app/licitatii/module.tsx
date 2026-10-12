@@ -1,6 +1,7 @@
 'use client';
 import {useEffect,useState} from 'react';
 import Link from 'next/link';
+import {useWorkspaceRefresh} from '../../lib/use-workspace-refresh';
 import {sections,Field} from './fields';
 import ConfigEditor from './config-editor';
 import './module.css';
@@ -17,6 +18,7 @@ export default function Module({section}:{section:string}){
  useEffect(()=>{if(form||proposal||evaluation)document.querySelector<HTMLElement>('.lm-editor')?.scrollIntoView({behavior:'smooth',block:'start'});},[!!form,!!proposal,!!evaluation]);
  async function refresh(){const kinds=[...new Set(['companies','associations','experts','configurations',section])];const results=await Promise.all(kinds.map(all));const d=await api('/api/tenders');const next:Record<string,Row[]>={tenders:d.tenders};kinds.forEach((k,i)=>next[k]=results[i]);setRefs(next);setRows(next[section]);}
  useEffect(()=>{let active=true;setLoading(true);refresh().catch(e=>{if(active)setError(e.message)}).finally(()=>{if(active)setLoading(false)});return ()=>{active=false};},[section]);
+ useWorkspaceRefresh(refresh,saving||!!form);
  const linked=(kind:string,id:unknown)=>(refs[kind]||[]).find(r=>String(r.id)===String(id));
  const title=(row:Row)=>row.name||row.title||(section==='applications'?`${linked('experts',row.expertId)?.name||'Expert'} · ${row.role}`:section==='members'?`${linked('companies',row.companyId)?.name||'Companie'} · ${row.role}`:row.id);
  const visible=rows.filter(r=>(!tender||!meta.fields.some(f=>f.key==='tenderId')||String(r.tenderId)===tender)&&(!owner||!r.tenderId||[owner,'Împreună'].includes(linked('tenders',r.tenderId)?.owner))&&(title(r)+' '+JSON.stringify(r)).toLocaleLowerCase('ro').includes(search.toLocaleLowerCase('ro')));
