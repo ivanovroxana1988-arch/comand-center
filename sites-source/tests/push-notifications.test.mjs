@@ -10,6 +10,17 @@ function setup(){
  const db={prepare(sql){return{bind(...args){return{first:async()=>sqlite.prepare(sql).get(...args)??null,all:async()=>({results:sqlite.prepare(sql).all(...args)}),run:async()=>{const r=sqlite.prepare(sql).run(...args);return{success:true,meta:{changes:Number(r.changes)}}}}}}}};
  return{db,sqlite};
 }
+test('routine status edits are quiet; new active tasks and reassignment create alerts',()=>{
+ const {sqlite}=setup();
+ sqlite.exec("INSERT INTO tasks(area,project,title,owner,created_at,updated_at) VALUES('ONG','Test','Task','Roxana','now','now')");
+ assert.deepEqual(sqlite.prepare('SELECT kind,owner FROM notification_events').all().map(r=>[r.kind,r.owner]),[['created','Roxana']]);
+ sqlite.exec("UPDATE tasks SET status='În lucru',next_step='Work' WHERE id=1");
+ assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM notification_events').get().n,1);
+ sqlite.exec("UPDATE tasks SET owner='Bogdan' WHERE id=1");
+ assert.deepEqual(sqlite.prepare('SELECT kind,owner FROM notification_events WHERE kind=?').all('assigned').map(r=>[r.kind,r.owner]),[['assigned','Bogdan']]);
+ sqlite.exec("UPDATE tasks SET status='Finalizat' WHERE id=1; UPDATE tasks SET owner='Roxana' WHERE id=1");
+ assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM notification_events').get().n,2);
+});
 test('VAPID key stays server-side, is reused and produces a valid ES256 signature without task payload',async()=>{
  const {db}=setup(),keys=await pushKeys(db);assert.deepEqual(await pushKeys(db),keys);
  let request;
@@ -33,7 +44,7 @@ test('Roxana events go only to her device; shared events reach both; repeated dr
  const sent=[];const fake=async endpoint=>{sent.push(endpoint);return new Response(null,{status:201})};
  await drainNotifications(db,fake,now);assert.deepEqual(sent,['https://fcm.googleapis.com/fcm/send/r']);
  await drainNotifications(db,fake,now);assert.equal(sent.length,1);
- sqlite.prepare('INSERT INTO notification_events VALUES(?,NULL,?,?,?)').run('shared','Împreună','updated',new Date(now).toISOString());
+ sqlite.prepare('INSERT INTO notification_events VALUES(?,NULL,?,?,?)').run('shared','Împreună','assigned',new Date(now).toISOString());
  await drainNotifications(db,fake,now);assert.equal(sent.filter(s=>s.endsWith('/r')).length,2);assert.equal(sent.filter(s=>s.endsWith('/b')).length,1);
 });
 test('expired push subscriptions are removed and transient failures retry without leaking endpoints',async()=>{

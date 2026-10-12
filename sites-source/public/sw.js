@@ -9,7 +9,7 @@ self.addEventListener('fetch',event=>{
 
 self.addEventListener('push',event=>{
  event.waitUntil(self.registration.showNotification('Command Center',{
-  body:'Ai un task nou, o modificare sau un termen care te privește. Deschide aplicația pentru detalii.',
+  body:'Ai un task nou atribuit sau un termen care te privește. Deschide aplicația pentru detalii.',
   icon:'/icons/app-192.png',badge:'/icons/app-192.png',tag:'command-center-update',renotify:true,data:{url:'/'},
  }));
 });

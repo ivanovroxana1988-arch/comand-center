@@ -75,7 +75,7 @@ export async function enqueueDueReminders(db,now=new Date()){
  }
 }
 export async function drainNotifications(db,fetcher=fetch,now=Date.now()){
- const pending=await db.prepare(`SELECT e.id AS event_id,s.id AS subscription_id,s.endpoint FROM notification_events e JOIN push_subscriptions s ON (s.owner=e.owner OR e.owner='Împreună') LEFT JOIN notification_deliveries d ON d.event_id=e.id AND d.subscription_id=s.id WHERE e.created_at>=s.created_at AND e.created_at>=? AND (d.event_id IS NULL OR (d.status='failed' AND d.next_attempt<=? AND d.attempts<6) OR (d.status='sending' AND d.next_attempt<=?)) ORDER BY e.created_at LIMIT 6`).bind(new Date(now-86400000).toISOString(),now,now).all();
+ const pending=await db.prepare(`SELECT e.id AS event_id,s.id AS subscription_id,s.endpoint FROM notification_events e JOIN push_subscriptions s ON (s.owner=e.owner OR e.owner='Împreună') LEFT JOIN notification_deliveries d ON d.event_id=e.id AND d.subscription_id=s.id WHERE e.kind IN ('created','assigned','deadline') AND e.created_at>=s.created_at AND e.created_at>=? AND (d.event_id IS NULL OR (d.status='failed' AND d.next_attempt<=? AND d.attempts<6) OR (d.status='sending' AND d.next_attempt<=?)) ORDER BY e.created_at LIMIT 6`).bind(new Date(now-86400000).toISOString(),now,now).all();
  if(!pending.results.length)return;
  const keys=await pushKeys(db),groups=new Map();
  for(const row of pending.results){

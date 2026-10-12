@@ -45,4 +45,10 @@ Abonarea este asociată exclusiv identității Google verificate. Roxana primeș
 
 Migrația 0007 adaugă abonamente, evenimente, livrări idempotente și cheia de semnare VAPID, generată pe server și păstrată numai în baza D1 protejată. API-ul returnează doar cheia publică. Push-urile nu conțin payload: furnizorul telefonului nu primește titluri de task, note sau documente. Service worker-ul arată o alertă generală și deschide aplicația, unde detaliile cer autentificare.
 
-Evenimentele pentru taskuri noi și modificări sunt create prin triggere D1, indiferent dacă schimbarea vine din chat sau din dashboard. Worker-ul încearcă livrarea după scriere; un cron la fiecare minut reia erorile temporare și pregătește o alertă zilnică pentru termenele active, după ora 09:00 în fusul orar al dispozitivului. Abonamentele expirate sunt eliminate; evenimentele nu sunt trimise retroactiv la activarea unui telefon. Livrările pot întârzia în funcție de internet și de sistemul de operare. Fiecare utilizator trebuie să acorde permisiunea pe telefonul lui.
+Evenimentele pentru taskuri noi și atribuiri noi sunt create prin triggere D1, indiferent dacă schimbarea vine din chat sau din dashboard. Worker-ul încearcă livrarea după scriere; un cron la fiecare minut reia erorile temporare și pregătește o alertă zilnică pentru termenele active, după ora 09:00 în fusul orar al dispozitivului. Abonamentele expirate sunt eliminate; evenimentele nu sunt trimise retroactiv la activarea unui telefon. Livrările pot întârzia în funcție de internet și de sistemul de operare. Fiecare utilizator trebuie să acorde permisiunea pe telefonul lui.
+
+## Monitorizare simplificată
+
+Pagina principală este Azi și identifică automat Roxana/Bogdan din sesiunea Google. Taskurile proprii și cele Împreună sunt grupate în Taskurile mele, Aștept răspuns (inclusiv follow-up) și Întârziate. Ecranul Echipa arată separat responsabilitățile Roxanei, ale lui Bogdan și cele comune. Spațiile, paginile și organizarea avansată rămân în meniul secundar. Gruparea nu modifică statusurile, termenele sau datele taskurilor.
+
+Migrația 0008 restrânge notificările la taskuri active nou create, schimbarea responsabilului și alerte de termen. Modificările de status sau de detalii continuă să se sincronizeze, fără notificări push suplimentare.
